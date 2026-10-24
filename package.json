@@ -1,6 +1,6 @@
 {
   "name": "dsh-project-progress",
-  "description": "DSH plugin: workspace-shared project progress document (PROGRESS.md) with cross-session progress awareness and a release status record",
+  "description": "DSH plugin: workspace-shared PROGRESS.md, MEMORY.md project map, and modular docs/ with cross-session progress awareness",
   "version": "0.1.0-rc.5",
   "type": "module",
   "main": "lib/index.js",

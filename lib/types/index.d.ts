@@ -1,14 +1,14 @@
 /**
- * Workspace-shared project progress document.
+ * Workspace-shared project progress, memory map, and modular documentation.
  *
  * Maintains a per-workspace `PROGRESS.md` with two regions: a curated
  * `## Project Facts` (stable facts — publish status, repository, community
  * rules, release steps) and an append-only `## Progress Timeline`
- * (auto-appended session summaries plus manual entries). Every session in the
- * workspace reads the document through an injected prompt section and
- * maintains it through three model tools (`project_status` / `project_update`
- * / `project_facts`), so a new session starts knowing where the project
- * stands and how to release it.
+ * (auto-appended session summaries plus manual entries). The injected prompt
+ * also teaches every session to read `MEMORY.md` (the project map) and the
+ * matching module file under `docs/`, and to keep both current whenever code
+ * or structure changes. Four model tools maintain the files
+ * (`project_status` / `project_update` / `project_facts` / `project_memory`).
  * @module @deepseek-ai/dsh-project-progress
  */
 import type { Context } from '@deepseek-ai/cordis';
