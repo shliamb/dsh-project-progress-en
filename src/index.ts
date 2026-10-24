@@ -2,12 +2,13 @@
  * Workspace-shared project progress document.
  *
  * Maintains a per-workspace `PROGRESS.md` with two regions: a curated
- * `## 项目档案` (stable facts — publish status, repository, community rules,
- * release steps) and an append-only `## 进展时间线` (auto-appended session
- * summaries plus manual entries). Every session in the workspace reads the
- * document through an injected prompt section and maintains it through three
- * model tools (`project_status` / `project_update` / `project_facts`), so a
- * new session starts knowing where the project stands and how to release it.
+ * `## Project Facts` (stable facts — publish status, repository, community
+ * rules, release steps) and an append-only `## Progress Timeline`
+ * (auto-appended session summaries plus manual entries). Every session in the
+ * workspace reads the document through an injected prompt section and
+ * maintains it through three model tools (`project_status` / `project_update`
+ * / `project_facts`), so a new session starts knowing where the project
+ * stands and how to release it.
  * @module @deepseek-ai/dsh-project-progress
  */
 
@@ -26,16 +27,16 @@ export const name = 'dsh-project-progress'
 export const inject = ['tools', 'systemPrompt']
 
 const FILE_NAME = 'PROGRESS.md'
-const FACTS_HEADER = '## 项目档案'
-const TIMELINE_HEADER = '## 进展时间线'
+const FACTS_HEADER = '## Project Facts'
+const TIMELINE_HEADER = '## Progress Timeline'
 const MAX_STATUS_CHARS = 8000
 const MAX_PROMPT_CHARS = 5000
 
-const TEMPLATE = `# 项目进展(共享)
+const TEMPLATE = `# Project Progress (Shared)
 
 ${FACTS_HEADER}
 
-<!-- 项目重要事实:发布状态、仓库地址、DSH 插件社区规则、发布/同步流程等,用 project_facts 工具维护 -->
+<!-- Key project facts: release status, repository URL, DSH plugin community rules, release/sync workflow, etc. Maintained with the project_facts tool. -->
 
 ${TIMELINE_HEADER}
 
@@ -66,7 +67,7 @@ function splitDoc(text: string): DocParts {
 }
 
 function renderDoc(parts: DocParts): string {
-  return `# 项目进展(共享)\n\n${FACTS_HEADER}\n\n${parts.facts.trim()}\n\n${TIMELINE_HEADER}\n\n${parts.timeline.trim()}\n`
+  return `# Project Progress (Shared)\n\n${FACTS_HEADER}\n\n${parts.facts.trim()}\n\n${TIMELINE_HEADER}\n\n${parts.timeline.trim()}\n`
 }
 
 function readParts(cwd: string | undefined): DocParts | null {
@@ -156,72 +157,72 @@ function answerRender(_args: unknown, value: unknown): Array<{ type: 'text'; tex
 const STATUS_TOOL: ToolDefinition = {
   name: 'project_status',
   description:
-    '读取当前工作区的共享项目进展文档 PROGRESS.md(项目档案 + 进展时间线)。'
-    + '每个新会话应先调用它了解项目状态:是否已发布、GitHub 仓库地址、DSH 插件社区规则、最近的进展与下一步。',
+    'Read the workspace-shared project progress document PROGRESS.md (Project Facts + Progress Timeline). '
+    + 'Every new session should call this first to learn the project state: whether it has been released, the GitHub repository URL, DSH plugin community rules, recent progress, and next steps.',
   parameters: NO_ARGS,
   output: { schema: ANSWER_SCHEMA, render: answerRender },
   async execute(_args, exec) {
     const cwd = cwdOf(exec)
     const path = docPath(cwd)
-    if (path === null) return answer('', '当前会话没有工作目录,无法定位共享文档。', '', false)
+    if (path === null) return answer('', 'This session has no working directory, so the shared document cannot be located.', '', false)
     if (!existsSync(path)) {
-      return answer(path, '共享文档尚不存在(首次会话结束后会自动创建;也可以用 project_facts 或 project_update 创建)。', '', false)
+      return answer(path, 'The shared document does not exist yet (it is created automatically after the first session ends; you can also create it with project_facts or project_update).', '', false)
     }
     const parts = splitDoc(readFileSync(path, 'utf-8'))
-    const content = tailChars(`# 项目进展(共享)\n\n${FACTS_HEADER}\n${parts.facts}\n\n${TIMELINE_HEADER}\n${parts.timeline}`, MAX_STATUS_CHARS)
-    return answer(path, '已读取共享项目进展文档。', content)
+    const content = tailChars(`# Project Progress (Shared)\n\n${FACTS_HEADER}\n${parts.facts}\n\n${TIMELINE_HEADER}\n${parts.timeline}`, MAX_STATUS_CHARS)
+    return answer(path, 'Read the shared project progress document.', content)
   },
 }
 
 const UPDATE_TOOL: ToolDefinition = {
   name: 'project_update',
   description:
-    '向当前工作区的共享进展文档 PROGRESS.md 追加一条进展(时间线)。'
-    + '完成阶段性工作后用它记录:做了什么、结果如何、下一步计划。每次调用追加一条,不会覆盖已有内容。',
+    'Append a progress entry to the workspace-shared progress document PROGRESS.md (Progress Timeline). '
+    + 'Use it after completing a milestone to record what was done, the outcome, and the next step. Each call appends one entry and never overwrites existing content.',
   parameters: CONTENT_ARGS,
   output: { schema: ANSWER_SCHEMA, render: answerRender },
   async execute(args, exec) {
     const cwd = cwdOf(exec)
     const path = ensureDoc(cwd)
-    if (path === null) return answer('', '当前会话没有工作目录,无法写入共享文档。', '', false)
+    if (path === null) return answer('', 'This session has no working directory, so the shared document cannot be written.', '', false)
     const text = String((args as { content: string }).content).trim()
-    const heading = `## ${stamp()} · 会话 ${exec.agent?.session?.id.slice(0, 8) ?? 'unknown'} · 手动更新`
+    const heading = `## ${stamp()} · Session ${exec.agent?.session?.id.slice(0, 8) ?? 'unknown'} · Manual update`
     appendFileSync(path, `\n${heading}\n\n${text}\n`, 'utf-8')
-    return answer(path, '已追加进展。', `已追加:\n${heading}\n\n${text}`)
+    return answer(path, 'Progress appended.', `Appended:\n${heading}\n\n${text}`)
   },
 }
 
 const FACTS_TOOL: ToolDefinition = {
   name: 'project_facts',
   description:
-    '更新当前工作区共享进展文档的「项目档案」区(整体替换该区内容)。'
-    + '档案应记录项目重要事实,例如:发布状态(是否已发布 GitHub / 是否收录进 DSH 插件社区)、GitHub 仓库地址、'
-    + 'DSH 插件社区规则(dsh.bundle manifest、cordis.patch.yml、dsh-plugin topic、lib 产物入库、零运行时依赖)、'
-    + '发布与同步流程(改动 → 同步 checkout 与发布仓库 → 构建 → 推送 → 重启)、安装命令等。',
+    'Update the Project Facts section of the workspace-shared progress document (the whole section is replaced). '
+    + 'The facts should record key project facts, for example: release status (published to GitHub / listed in the DSH plugin community), GitHub repository URL, '
+    + 'DSH plugin community rules (dsh.bundle manifest, cordis.patch.yml, dsh-plugin topic, committed lib artifacts, zero runtime dependencies), '
+    + 'release and sync workflow (change → sync checkout and release repo → build → push → restart), install commands, etc.',
   parameters: FACTS_ARGS,
   output: { schema: ANSWER_SCHEMA, render: answerRender },
   async execute(args, exec) {
     const cwd = cwdOf(exec)
     const path = ensureDoc(cwd)
-    if (path === null) return answer('', '当前会话没有工作目录,无法写入共享文档。', '', false)
+    if (path === null) return answer('', 'This session has no working directory, so the shared document cannot be written.', '', false)
     const current = splitDoc(readFileSync(path, 'utf-8'))
     const text = String((args as { facts: string }).facts).trim()
     writeFileSync(path, renderDoc({ facts: text, timeline: current.timeline }), 'utf-8')
-    return answer(path, '已更新项目档案。', `项目档案已更新:\n\n${text}`)
+    return answer(path, 'Project facts updated.', `Project facts updated:\n\n${text}`)
   },
 }
 
 export function apply(ctx: Context): void {
-  // ── 工具:读取共享进度文档 ────────────────────────────────────────────────
+  // ── Tool: read the shared progress document ──────────────────────────────
   ctx.tools.register(STATUS_TOOL)
 
-  // ── 工具:手动追加进展 ────────────────────────────────────────────────────
+  // ── Tool: manually append a progress entry ───────────────────────────────
   ctx.tools.register(UPDATE_TOOL)
 
-  // ── 工具:维护项目档案(发布状态、社区规则等) ─────────────────────────────
+  // ── Tool: maintain the project facts (release status, community rules, etc.) ──
   ctx.tools.register(FACTS_TOOL)
 
-  // ── 提示词注入:每个新会话开局即知项目进展 ────────────────────────────────
+  // ── Prompt injection: every new session starts aware of project progress ──
   ctx.systemPrompt.section({
     name: 'project-progress',
     order: 60,
@@ -232,22 +233,22 @@ export function apply(ctx: Context): void {
       if (parts === null) return ''
       const timeline = tailChars(parts.timeline, MAX_PROMPT_CHARS)
       return [
-        '## 项目进展(共享文档 PROGRESS.md)',
+        '## Project Progress (shared document PROGRESS.md)',
         '',
-        '以下是当前工作区的共享进展文档,请先了解项目状态与发布情况。',
+        'The following is the workspace-shared progress document; read it first to understand the project state and release status.',
         '',
         `${FACTS_HEADER}`,
         parts.facts,
         '',
-        `${TIMELINE_HEADER}(最近部分)`,
+        `${TIMELINE_HEADER} (recent part)`,
         timeline,
         '',
-        '约定:完成阶段性工作后用 project_update 追加进展;发布状态、仓库地址、社区规则等事实变化时用 project_facts 更新档案。',
+        'Convention: after completing a milestone, append progress with project_update; when facts such as release status, repository URL, or community rules change, update the facts section with project_facts.',
       ].join('\n')
     },
   })
 
-  // ── 会话结束自动追加进展(仅顶层会话) ─────────────────────────────────────
+  // ── Append progress automatically when a session ends (top-level sessions only) ──
   ctx.on('agent/disposed', (payload: { agent: Agent }) => {
     const agent = payload.agent
     const session: Session = agent.session
@@ -287,8 +288,8 @@ export function apply(ctx: Context): void {
 
     const billed = input + read
     const hitPct = billed > 0 ? Math.round(read / billed * 100) : 0
-    const heading = `## ${stamp()} · 会话 ${session.id.slice(0, 8)}${title.length > 0 ? ` · ${title}` : ''}`
-    const line = `- 轮次 ${turns} · 步骤 ${steps} · 输入 ${fmtTokens(input)}(命中 ${hitPct}%)· 输出 ${fmtTokens(output)}`
+    const heading = `## ${stamp()} · Session ${session.id.slice(0, 8)}${title.length > 0 ? ` · ${title}` : ''}`
+    const line = `- Turns ${turns} · Steps ${steps} · Input ${fmtTokens(input)} (cache hit ${hitPct}%) · Output ${fmtTokens(output)}`
     appendFileSync(path, `\n${heading}\n${line}\n`, 'utf-8')
   })
 }
